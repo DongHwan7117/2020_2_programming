@@ -153,8 +153,8 @@ class Line2D:
         l=abs(a*circle.get_center().get_x_coordinate()+b*circle.get_center().get_y_coordinate()+c)/(math.sqrt(a*a+b*b))
         if l>d:
             return False
-        elif (circle.get_center().distance_to_another_point(self.get_start_point())<d)&(circle.get_center().distance_to_another_point(self.get_end_point())<d):
-            return False
+        # elif (circle.get_center().distance_to_another_point(self.get_start_point())<d)&(circle.get_center().distance_to_another_point(self.get_end_point())<d):
+        #     return True
         
         elif ((not self.is_divided_by_center_normal_line(circle))&(circle.get_center().distance_to_another_point(self.get_start_point())>d)&(circle.get_center().distance_to_another_point(self.get_end_point())>d)):
             return False
@@ -286,7 +286,7 @@ class MyApp(QMainWindow):
         circle = Circle2D(Point2D(uniform(500,1000), uniform(500,1000)),uniform(0.1, 100))
         
         
-        while len(shapelist)<50:
+        while len(shapelist)<100:
             shapelist.append(Line2D(Point2D(uniform(500,1000), uniform(500,1000)),Point2D(uniform(500,1000), uniform(500,1000))))
             
             for i in range(len(shapelist)-1):
