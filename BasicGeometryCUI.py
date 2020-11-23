@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import math
+import time
 
 
 
@@ -82,19 +83,19 @@ class Circle2D():
         else:
             return False
 
-
-    # def distance_from_boundary_to_point(self,point):
-    #     tmp_distance= self.get_center().distance_between_points(point)-self.get_radius()
-    #     if tmp_distance>0:
-    #         return tmp_distance
-    #     else:
-    #         return(-tmp_distance)
-    
-    # def distance_from_boundary_to_circle(self,circle):
-    #     if(self.get_center().distance_between_points(circle.get_center())<(self.get_radius()+circle.get_radius())):
-    #         return 0
-    #     else:
-    #         return(self.get_center().distance_between_points(circle.get_center())-(self.get_radius()+circle.get_radius()))
+    #원주와 점 사이의 거리로 정의
+    def distance_from_boundary_to_point(self,point):
+        tmp_distance= self.get_center().distance_between_points(point)-self.get_radius()
+        if tmp_distance>0:
+            return tmp_distance
+        else:
+            return(-tmp_distance)
+    #접할때랑 교점일떄랑 포함될때 거리가 0이 되고 그 외의 경우에는 원주와 원주 사이의 거리
+    def distance_from_boundary_to_circle(self,circle):
+        if(self.get_center().distance_to_another_point(circle.get_center())<(self.get_radius()+circle.get_radius())):
+            return 0
+        else:
+            return(self.get_center().distance_to_another_point(circle.get_center())-(self.get_radius()+circle.get_radius()))
     def print_name(self):
         print("Circle2D")
 
@@ -123,6 +124,20 @@ class Line2D:
     def print_name(self):
         print("Line2D")
 
+    def size_adjustment(self,ratio):
+        a=self.get_start_point()
+        b=self.get_end_point()
+        x_direction= a.get_x_coordinate()-b.get_x_coordinate()
+        y_direction= a.get_y_coordinate()-b.get_y_coordinate()
+
+        self.set_end_point(Point2D(b.get_x_coordinate()+x_direction*ratio,b.get_y_coordinate()+y_direction*ratio))
+
+
+    def length_fix(self, length):
+        angle=uniform(0,1000)
+        
+        self.set_end_point(Point2D(self.get_start_point().get_x_coordinate()+length*math.cos(angle),self.get_start_point().get_y_coordinate()+length*math.sin(angle) ))
+
 
     def Is_Intersect(self, line):
         x11=self.get_start_point().get_x_coordinate()
@@ -141,10 +156,10 @@ class Line2D:
         f3= (x21-x22)*(y12-y22) - (y21-y22)*(x12-x22)
         f4= (x21-x22)*(y11-y22) - (y21-y22)*(x11-x22)
         
-        if (f1*f2 < -100 ) & (f3*f4< -100 ):
-            return True
-        else:
+        if (f1*f2 > 0 ) & (f3*f4>0 ):
             return False
+        else:
+            return True
     def Is_Intersect_Circle(self, circle):
         a=self.get_start_point().get_y_coordinate()-self.get_end_point().get_y_coordinate()
         b=self.get_end_point().get_x_coordinate()-self.get_start_point().get_x_coordinate()
@@ -205,6 +220,7 @@ class MyApp(QMainWindow):
         self.full_read=[]
         self.full_read_itr=0
         self.q=1
+        self.r=1
         self.initUI()
         
 
@@ -249,7 +265,10 @@ class MyApp(QMainWindow):
 
    
     def translate(self):
-        
+        start = time.time()  
+
+        circle_number=40
+        line_number=400
         # shapelist=[]
         
        
@@ -289,27 +308,42 @@ class MyApp(QMainWindow):
         
         
         shapelist=[]
+        circlelist=[]
         
-        circle = Circle2D(Point2D(randint(200,1500), randint(200,800)),uniform(10, 100))
         
-        
-        while len(shapelist)<50:
-            shapelist.append(Line2D(Point2D(randint(100,1800), randint(100,900)),Point2D(randint(100,1800), randint(100,900))))
+        while len(circlelist)<circle_number:
+            circlelist.append(Circle2D(Point2D(uniform(200,1500), uniform(200,800)),uniform(30,50)))
             
+            for i in range(len(circlelist)-1):
+                if (circlelist[len(circlelist)-1].distance_from_boundary_to_circle(circlelist[i])==0) :
+                    print("here, intersection exist.")
+                    circlelist.pop()
+                    break
+                
+
+
+
+        while len(shapelist)<line_number:
+            shapelist.append(Line2D(Point2D(uniform(100,1800), uniform(100,900)),Point2D(uniform(100,1800), uniform(100,900))))
+            shapelist[len(shapelist)-1].length_fix(uniform(10,500))
+
+
             for i in range(len(shapelist)-1):
                 if shapelist[len(shapelist)-1].Is_Intersect(shapelist[i]) :
                     print("here, intersection exist.")
                     shapelist.pop()
                     break
-                
-
-            if shapelist[len(shapelist)-1].Is_Intersect_Circle(circle):
-                shapelist.pop()
-                continue
-
 
             
-        shapelist.append(circle)
+            for i in range(len(circlelist)):
+                if shapelist[len(shapelist)-1].Is_Intersect_Circle(circlelist[i]):
+                    shapelist.pop()
+                    break
+
+        
+
+        shapelist.extend(circlelist)
+
 
         painter = QPainter(self.image)
         painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
@@ -332,128 +366,245 @@ class MyApp(QMainWindow):
             elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
                 self.update()
 
-            print(circle.get_center().get_x_coordinate())
-            print(circle.get_center().get_y_coordinate())
-            print(circle.get_radius())
+           
 
-        for i in range(len(shapelist)-1):
-            print(shapelist[i].Is_Intersect_Circle(circle))
-            shapelist[i].Is_print(circle)
-            print(shapelist[i].get_start_point().get_x_coordinate())
-            print(shapelist[i].get_start_point().get_y_coordinate())
-            print(shapelist[i].get_end_point().get_x_coordinate())
-            print(shapelist[i].get_end_point().get_y_coordinate())
             
 
 
         self.Debugging_list=shapelist
         self.Debugging_itr=0
+        print("time :", time.time() - start)
+
+
 
     def qrite(self):
+            start = time.time()  
+
+            circle_number=80
+            line_number=400
+            # shapelist=[]
+            
         
-        # shapelist=[]
+            # circle = Circle2D(Point2D(500, 500),1/math.sqrt(5.1))
+            # line=Line2D(Point2D(500,501),Point2D(499.5,500))
+
+            # shapelist.append(circle)
+            # shapelist.append(line)
+
+
+            # print(line.Is_Intersect_Circle(circle))
+            # line.Is_print(circle)
+            
+
+
+            
+            
+            # painter = QPainter(self.image)
+            # painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+            
+            # for i in range(len(shapelist)):
+            #     if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
+            #         painter.drawEllipse(shapelist[i].get_center().get_x_coordinate()-shapelist[i].get_radius(), shapelist[i].get_center().get_y_coordinate()-shapelist[i].get_radius(),shapelist[i].get_radius(),shapelist[i].get_radius() )
+            #         self.update()
+
+            #     elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
+            #         painter.drawLine(QPoint(shapelist[i].get_start_point().get_x_coordinate(),shapelist[i].get_start_point().get_y_coordinate()),QPoint(shapelist[i].get_end_point().get_x_coordinate(),shapelist[i].get_end_point().get_y_coordinate()))
+            #         self.update()
+                
+            #     elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
+            #         self.update()
+
+
+
+            self.image.fill(Qt.white)
+            self.update()
+            
+            
+            shapelist=[]
+            circle_list_number=0
+            line_list_number=0
+            shape_random=0
+
+
+            while len(shapelist)<circle_number+line_number:
+                shape_random=randint(0,1)
+                if((shape_random==0)&(circle_list_number<circle_number)) : 
+                    shapelist.append(Circle2D(Point2D(uniform(200,1500), uniform(200,800)),uniform(30,50)))
+                    circle_list_number=circle_list_number+1
+                    for i in range(len(shapelist)-1):
+                        if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
+                            if (shapelist[len(shapelist)-1].distance_from_boundary_to_circle(shapelist[i])==0) :
+                                print("here, intersection exist.")
+                                shapelist.pop()
+                                circle_list_number=circle_list_number-1
+                                break
+                        elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
+                            if shapelist[i].Is_Intersect_Circle(shapelist[len(shapelist)-1]) :
+                                print("here, intersection exist.")
+                                shapelist.pop()
+                                circle_list_number=circle_list_number-1
+                                break
+                elif ((shape_random==1)&(line_list_number<line_number)):
+                        shapelist.append(Line2D(Point2D(uniform(100,1800), uniform(100,900)),Point2D(uniform(100,1800), uniform(100,900))))
+                        shapelist[len(shapelist)-1].length_fix(uniform(10,500))
+                        line_list_number=line_list_number+1
+                        for i in range(len(shapelist)-1):
+                            if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
+                                if (shapelist[len(shapelist)-1].Is_Intersect_Circle(shapelist[i])) :
+                                    print("here, intersection exist.")
+                                    shapelist.pop()
+                                    line_list_number=line_list_number-1
+                                    break
+                            elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
+                                if shapelist[len(shapelist)-1].Is_Intersect(shapelist[i]) :
+                                    print("here, intersection exist.")
+                                    shapelist.pop()
+                                    line_list_number=line_list_number-1
+                                    break
+
+                
+                
+            
+            painter = QPainter(self.image)
+            painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+            
+            for i in range(len(shapelist)):
+                if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
+                    self.brush_color = Qt.red
+                    self.brush_size = 0
+                    painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+                    painter.drawEllipse(shapelist[i].get_center().get_x_coordinate()-shapelist[i].get_radius(), shapelist[i].get_center().get_y_coordinate()-shapelist[i].get_radius(), shapelist[i].get_radius()*2.0, shapelist[i].get_radius()*2.0 )
+                    self.update()
+                    self.brush_color = Qt.black
+                    self.brush_size = 0
+                    painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+
+                elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
+                    painter.drawLine(QPoint(shapelist[i].get_start_point().get_x_coordinate(),shapelist[i].get_start_point().get_y_coordinate()),QPoint(shapelist[i].get_end_point().get_x_coordinate(),shapelist[i].get_end_point().get_y_coordinate()))
+                    self.update()
+                
+                elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
+                    self.update()
+
+            self.Debugging_list=shapelist
+            self.Debugging_itr=0
+            print("time :", time.time() - start)
+        
+    
+
+
+    # def qrite(self):
+        
+    #     # shapelist=[]
         
        
-        # circle = Circle2D(Point2D(500, 500),1/math.sqrt(5.1))
-        # line=Line2D(Point2D(500,501),Point2D(499.5,500))
+    #     # circle = Circle2D(Point2D(500, 500),1/math.sqrt(5.1))
+    #     # line=Line2D(Point2D(500,501),Point2D(499.5,500))
 
-        # shapelist.append(circle)
-        # shapelist.append(line)
+    #     # shapelist.append(circle)
+    #     # shapelist.append(line)
 
 
-        # print(line.Is_Intersect_Circle(circle))
-        # line.Is_print(circle)
+    #     # print(line.Is_Intersect_Circle(circle))
+    #     # line.Is_print(circle)
         
 
 
         
         
-        # painter = QPainter(self.image)
-        # painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+    #     # painter = QPainter(self.image)
+    #     # painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
         
-        # for i in range(len(shapelist)):
-        #     if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
-        #         painter.drawEllipse(shapelist[i].get_center().get_x_coordinate()-shapelist[i].get_radius(), shapelist[i].get_center().get_y_coordinate()-shapelist[i].get_radius(),shapelist[i].get_radius(),shapelist[i].get_radius() )
-        #         self.update()
+    #     # for i in range(len(shapelist)):
+    #     #     if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
+    #     #         painter.drawEllipse(shapelist[i].get_center().get_x_coordinate()-shapelist[i].get_radius(), shapelist[i].get_center().get_y_coordinate()-shapelist[i].get_radius(),shapelist[i].get_radius(),shapelist[i].get_radius() )
+    #     #         self.update()
 
-        #     elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
-        #         painter.drawLine(QPoint(shapelist[i].get_start_point().get_x_coordinate(),shapelist[i].get_start_point().get_y_coordinate()),QPoint(shapelist[i].get_end_point().get_x_coordinate(),shapelist[i].get_end_point().get_y_coordinate()))
-        #         self.update()
+    #     #     elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
+    #     #         painter.drawLine(QPoint(shapelist[i].get_start_point().get_x_coordinate(),shapelist[i].get_start_point().get_y_coordinate()),QPoint(shapelist[i].get_end_point().get_x_coordinate(),shapelist[i].get_end_point().get_y_coordinate()))
+    #     #         self.update()
             
-        #     elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
-        #         self.update()
+    #     #     elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
+    #     #         self.update()
 
 
 
-        self.image.fill(Qt.white)
-        self.update()
+    #     self.image.fill(Qt.white)
+    #     self.update()
         
         
-        shapelist=[]
+    #     shapelist=[]
         
-        circle = Circle2D(Point2D(randint(200,1500), randint(200,800)),uniform(10, 100))
+    #     circle = Circle2D(Point2D(randint(200,1500), randint(200,800)),uniform(10, 100))
         
         
-        while len(shapelist)<self.q:
-            shapelist.append(Line2D(Point2D(randint(100,1800), randint(100,900)),Point2D(randint(100,1800), randint(100,900))))
+    #     while len(shapelist)<self.q:
+    #         shapelist.append(Line2D(Point2D(randint(100,1800), randint(100,900)),Point2D(randint(100,1800), randint(100,900))))
             
-            for i in range(len(shapelist)-1):
-                if shapelist[len(shapelist)-1].Is_Intersect(shapelist[i]) :
-                    print("here, intersection exist.")
-                    shapelist.pop()
-                    break
+    #         for i in range(len(shapelist)-1):
+    #             if shapelist[len(shapelist)-1].Is_Intersect(shapelist[i]) :
+    #                 print("here, intersection exist.")
+    #                 shapelist.pop()
+    #                 break
                 
 
-            if shapelist[len(shapelist)-1].Is_Intersect_Circle(circle):
-                shapelist.pop()
-                continue
+    #         if shapelist[len(shapelist)-1].Is_Intersect_Circle(circle):
+    #             shapelist.pop()
+    #             continue
 
 
             
-        shapelist.append(circle)
+    #     shapelist.append(circle)
 
-        painter = QPainter(self.image)
-        painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+    #     painter = QPainter(self.image)
+    #     painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
         
-        for i in range(len(shapelist)):
-            if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
-                self.brush_color = Qt.red
-                self.brush_size = 0
-                painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
-                painter.drawEllipse(shapelist[i].get_center().get_x_coordinate()-shapelist[i].get_radius(), shapelist[i].get_center().get_y_coordinate()-shapelist[i].get_radius(), shapelist[i].get_radius()*2.0, shapelist[i].get_radius()*2.0 )
-                self.update()
-                self.brush_color = Qt.black
-                self.brush_size = 0
-                painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+    #     for i in range(len(shapelist)):
+    #         if(str(type(shapelist[i])) == "<class '__main__.Circle2D'>") :
+    #             self.brush_color = Qt.red
+    #             self.brush_size = 0
+    #             painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
+    #             painter.drawEllipse(shapelist[i].get_center().get_x_coordinate()-shapelist[i].get_radius(), shapelist[i].get_center().get_y_coordinate()-shapelist[i].get_radius(), shapelist[i].get_radius()*2.0, shapelist[i].get_radius()*2.0 )
+    #             self.update()
+    #             self.brush_color = Qt.black
+    #             self.brush_size = 0
+    #             painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
 
-            elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
-                painter.drawLine(QPoint(shapelist[i].get_start_point().get_x_coordinate(),shapelist[i].get_start_point().get_y_coordinate()),QPoint(shapelist[i].get_end_point().get_x_coordinate(),shapelist[i].get_end_point().get_y_coordinate()))
-                self.update()
+    #         elif(str(type(shapelist[i])) == "<class '__main__.Line2D'>") :
+    #             painter.drawLine(QPoint(shapelist[i].get_start_point().get_x_coordinate(),shapelist[i].get_start_point().get_y_coordinate()),QPoint(shapelist[i].get_end_point().get_x_coordinate(),shapelist[i].get_end_point().get_y_coordinate()))
+    #             self.update()
             
-            elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
-                self.update()
+    #         elif(str(type(shapelist[i])) == "<class '__main__.Point2D'>") :
+    #             self.update()
 
-            print(circle.get_center().get_x_coordinate())
-            print(circle.get_center().get_y_coordinate())
-            print(circle.get_radius())
+    #         print(circle.get_center().get_x_coordinate())
+    #         print(circle.get_center().get_y_coordinate())
+    #         print(circle.get_radius())
 
-        for i in range(len(shapelist)-1):
-            print(shapelist[i].Is_Intersect_Circle(circle))
-            shapelist[i].Is_print(circle)
-            print(shapelist[i].get_start_point().get_x_coordinate())
-            print(shapelist[i].get_start_point().get_y_coordinate())
-            print(shapelist[i].get_end_point().get_x_coordinate())
-            print(shapelist[i].get_end_point().get_y_coordinate())
+    #     for i in range(len(shapelist)-1):
+    #         print(shapelist[i].Is_Intersect_Circle(circle))
+    #         shapelist[i].Is_print(circle)
+    #         print(shapelist[i].get_start_point().get_x_coordinate())
+    #         print(shapelist[i].get_start_point().get_y_coordinate())
+    #         print(shapelist[i].get_end_point().get_x_coordinate())
+    #         print(shapelist[i].get_end_point().get_y_coordinate())
             
 
 
-        self.Debugging_list=shapelist
-        self.Debugging_itr=0
-        self.q=self.q+1
+    #     self.Debugging_list=shapelist
+    #     self.Debugging_itr=0
+    #     self.q=self.q+1
 
+    
+    
+    
     def rotate(self):
-        self.image.fill(Qt.white)
-        self.update()
+        
+        if self.r==1:
+            self.image.fill(Qt.white)
+            self.update()
+            self.r=0
+        
         f = open("C:\\Users\\com\\Desktop\\Debugging.txt", 'a')
         painter = QPainter(self.image)
         painter.setPen(QPen(self.brush_color, self.brush_size, Qt.SolidLine, Qt.RoundCap))
@@ -481,19 +632,24 @@ class MyApp(QMainWindow):
                 self.update()
 
 
-        f.write(str(self.Debugging_list[len(self.Debugging_list)-1].get_radius())+"\n")
-        #self.Debugging_list[self.Debugging_itr].Is_print(self.Debugging_list[len(self.Debugging_list)-1])
-        f.write(str(self.Debugging_list[len(self.Debugging_list)-1].get_center().get_x_coordinate())+"\n")
-        f.write(str(self.Debugging_list[len(self.Debugging_list)-1].get_center().get_y_coordinate())+"\n")
-        
-        #print(self.Debugging_list[self.Debugging_itr].Is_Intersect_Circle(self.Debugging_list[len(self.Debugging_list)-1]))
-        f.write(str(self.Debugging_list[self.Debugging_itr].get_start_point().get_x_coordinate())+"\n")
-        f.write(str(self.Debugging_list[self.Debugging_itr].get_start_point().get_y_coordinate())+"\n")
-        f.write(str(self.Debugging_list[self.Debugging_itr].get_end_point().get_x_coordinate())+"\n")
-        f.write(str(self.Debugging_list[self.Debugging_itr].get_end_point().get_y_coordinate())+"\n")
-            
 
-        self.Debugging_itr= self.Debugging_itr +1
+
+        
+
+        
+        if self.Debugging_itr< len(self.Debugging_list)-1:
+            if(str(type(self.Debugging_list[self.Debugging_itr])) == "<class '__main__.Circle2D'>") :
+                f.write(str(self.Debugging_list[len(self.Debugging_list)-1].get_radius())+"\n")
+                f.write(str(self.Debugging_list[len(self.Debugging_list)-1].get_center().get_x_coordinate())+"\n")
+                f.write(str(self.Debugging_list[len(self.Debugging_list)-1].get_center().get_y_coordinate())+"\n")    
+            elif(str(type(self.Debugging_list[self.Debugging_itr])) == "<class '__main__.Line2D'>") :
+                f.write(str(self.Debugging_list[self.Debugging_itr].get_start_point().get_x_coordinate())+"\n")
+                f.write(str(self.Debugging_list[self.Debugging_itr].get_start_point().get_y_coordinate())+"\n")
+                f.write(str(self.Debugging_list[self.Debugging_itr].get_end_point().get_x_coordinate())+"\n")
+                f.write(str(self.Debugging_list[self.Debugging_itr].get_end_point().get_y_coordinate())+"\n") 
+            
+            
+            self.Debugging_itr= self.Debugging_itr +1
 
         
 
